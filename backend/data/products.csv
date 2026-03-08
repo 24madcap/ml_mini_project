@@ -1,0 +1,11 @@
+id,name,price,weight,gaming_score,battery_score,image_url
+1,MacBook Air M2,34900,1.24,3,10,/images/mac.png
+2,ASUS TUF Gaming F15,29990,2.30,9,5,/images/tuf.png
+3,Lenovo Legion 5,38990,2.40,9,4,/images/legion.png
+4,Dell XPS 13 Plus,55000,1.23,2,8,/images/xps.png
+5,Acer Swift Go 14,23990,1.25,3,7,/images/swift.jpg
+6,HP Victus 16,32900,2.46,8,5,/images/victus.jpg
+7,MSI Katana 15,35990,2.25,9,4,/images/katana.png
+8,ACER PREDATOR HELIOS NEO 16S,55990,2.30,10,3,/images/helios.jpg
+9,Lenovo Yoga Slim 7,31990,1.17,3,8,/images/yoga.png
+10,ROG Strix G16,59990,2.50,10,4,/images/strix.png
