@@ -1,49 +1,96 @@
 import { useState } from 'react';
-import axios from 'axios';
 
-function App() {
-  // State สำหรับจัดการหน้าจอ (1=Form, 2=Loading, 3=Result)
+// 1. ฐานข้อมูลสินค้า (ย้ายจาก CSV มาไว้ที่นี่เลย และแก้เลขราคาแล้วครับ)
+const productsData = [
+  { id: 1, name: "MacBook Air M2", price: 34900, weight: 1.24, gaming_score: 3, battery_score: 10, image_url: "/images/mac.png" },
+  { id: 2, name: "ASUS TUF Gaming F15", price: 29990, weight: 2.30, gaming_score: 9, battery_score: 5, image_url: "/images/tuf.png" },
+  { id: 3, name: "Lenovo Legion 5", price: 38990, weight: 2.40, gaming_score: 9, battery_score: 4, image_url: "/images/legion.png" },
+  { id: 4, name: "Dell XPS 13 Plus", price: 55000, weight: 1.23, gaming_score: 2, battery_score: 8, image_url: "/images/xps.png" },
+  { id: 5, name: "Acer Swift Go 14", price: 23990, weight: 1.25, gaming_score: 3, battery_score: 7, image_url: "/images/swift.jpg" },
+  { id: 6, name: "HP Victus 16", price: 32900, weight: 2.46, gaming_score: 8, battery_score: 5, image_url: "/images/victus.jpg" },
+  { id: 7, name: "MSI Katana 15", price: 35990, weight: 2.25, gaming_score: 9, battery_score: 4, image_url: "/images/katana.png" },
+  { id: 8, name: "ACER PREDATOR HELIOS NEO 16S", price: 55990, weight: 2.30, gaming_score: 10, battery_score: 3, image_url: "/images/helios.jpg" }, // แก้พาธและราคาตัวนี้แล้วครับ
+  { id: 9, name: "Lenovo Yoga Slim 7", price: 31990, weight: 1.17, gaming_score: 3, battery_score: 8, image_url: "/images/yoga.png" },
+  { id: 10, name: "ROG Strix G16", price: 59990, weight: 2.50, gaming_score: 10, battery_score: 4, image_url: "/images/strix.png" } // แก้ราคาตัวนี้แล้วครับ (ห้ามมีลูกน้ำ)
+];
+
+// ฟังก์ชันหาค่า Min/Max สำหรับปรับสเกลข้อมูล (Normalize)
+const getMinMax = (key) => {
+  const values = productsData.map(p => p[key]);
+  return { min: Math.min(...values), max: Math.max(...values) };
+};
+
+const bounds = {
+  price: getMinMax('price'),
+  weight: getMinMax('weight'),
+  gaming: getMinMax('gaming_score'),
+  battery: getMinMax('battery_score')
+};
+
+// ฟังก์ชันแปลงสเกลให้เป็น 0 ถึง 1
+const normalize = (val, min, max) => (max === min ? 0 : (val - min) / (max - min));
+
+export default function App() {
   const [step, setStep] = useState(1);
-  
-  // ข้อมูลที่ user กรอก
   const [formData, setFormData] = useState({
     budget: 30000,
     portability: 5,
     gaming: 5,
     work_duration: 5
   });
-
-  // เก็บผลลัพธ์สินค้า
   const [products, setProducts] = useState([]);
 
-  // ฟังก์ชันอัปเดตค่าเมื่อเลื่อน Slider
   const handleChange = (e) => {
-    setFormData({ 
-      ...formData, 
-      [e.target.name]: parseInt(e.target.value) 
-    });
+    setFormData({ ...formData, [e.target.name]: parseInt(e.target.value) });
   };
 
-  // ฟังก์ชันส่งข้อมูลไปหา Backend
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setStep(2); // แสดงหน้า Loading
-    
-    try {
-      // ยิง API ไปที่ Backend (Port 8000)
-      const res = await axios.post('http://127.0.0.1:8000/recommend', formData);
+    setStep(2); // โชว์ Loading
+
+    // 2. เริ่มการคำนวณแบบ AI (ย้ายจาก Python มาคำนวณใน JS)
+    setTimeout(() => {
+      const estimatedWeight = 3.0 - (formData.portability * 0.2);
       
-      // รอแป๊บนึงเพื่อให้เห็น Loading (จำลองการคิด)
-      setTimeout(() => {
-        setProducts(res.data.data);
-        setStep(3);
-      }, 800);
-      
-    } catch (error) {
-      console.error("Error:", error);
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อกับ Server");
-      setStep(1);
-    }
+      // สเปคที่ User อยากได้ (แปลงเป็นสเกล 0-1)
+      const userVector = {
+        price: normalize(formData.budget, bounds.price.min, bounds.price.max),
+        weight: normalize(estimatedWeight, bounds.weight.min, bounds.weight.max),
+        gaming: normalize(formData.gaming, bounds.gaming.min, bounds.gaming.max),
+        battery: normalize(formData.work_duration, bounds.battery.min, bounds.battery.max)
+      };
+
+      // เทียบกับโน้ตบุ๊กทุกเครื่อง
+      const scoredProducts = productsData.map(product => {
+        const pVector = {
+          price: normalize(product.price, bounds.price.min, bounds.price.max),
+          weight: normalize(product.weight, bounds.weight.min, bounds.weight.max),
+          gaming: normalize(product.gaming_score, bounds.gaming.min, bounds.gaming.max),
+          battery: normalize(product.battery_score, bounds.battery.min, bounds.battery.max)
+        };
+
+        // หาระยะห่าง (Euclidean Distance)
+        const distance = Math.sqrt(
+          Math.pow(userVector.price - pVector.price, 2) +
+          Math.pow(userVector.weight - pVector.weight, 2) +
+          Math.pow(userVector.gaming - pVector.gaming, 2) +
+          Math.pow(userVector.battery - pVector.battery, 2)
+        );
+
+        // คำนวณ % Match (สูตรใหม่ ป้องกัน 0% และดูสมจริงขึ้น)
+        const rawScore = (1 - (distance / 2)) * 100;
+        const matchScore = Math.max(0, Math.min(100, rawScore));
+
+        return { ...product, match_score: matchScore.toFixed(1), distance };
+      });
+
+      // เรียงลำดับจากระยะห่างน้อยสุด (ใกล้เคียงสุด) ไปหามากสุด แล้วตัดเอาแค่ 3 อันดับแรก
+      scoredProducts.sort((a, b) => a.distance - b.distance);
+      const top3 = scoredProducts.slice(0, 3);
+
+      setProducts(top3);
+      setStep(3); // โชว์ผลลัพธ์
+    }, 1000); // ดีเลย์ 1 วินาทีให้ดูเหมือน AI กำลังคิด
   };
 
   return (
@@ -61,8 +108,6 @@ function App() {
         {/* STEP 1: แบบฟอร์มคำถาม */}
         {step === 1 && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            
-            {/* คำถาม 1: งบประมาณ */}
             <div>
               <label className="flex justify-between font-semibold text-gray-700 mb-2">
                 <span>งบประมาณสูงสุด</span>
@@ -75,7 +120,6 @@ function App() {
               />
             </div>
 
-            {/* คำถาม 2: พกพา */}
             <div>
               <label className="block font-semibold text-gray-700 mb-2">เน้นพกพาบ่อยแค่ไหน?</label>
               <input 
@@ -88,7 +132,6 @@ function App() {
               </div>
             </div>
 
-            {/* คำถาม 3: เล่นเกม */}
             <div>
               <label className="block font-semibold text-gray-700 mb-2">เล่นเกมหนักแค่ไหน?</label>
               <input 
@@ -101,7 +144,6 @@ function App() {
               </div>
             </div>
 
-            {/* คำถาม 4: แบตเตอรี่ */}
             <div>
               <label className="block font-semibold text-gray-700 mb-2">ใช้งานนอกสถานที่ (ไม่เสียบปลั๊ก)</label>
               <input 
@@ -142,11 +184,9 @@ function App() {
             <div className="space-y-4">
               {products.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition bg-white items-center relative overflow-hidden">
-                  
-                  {/* แถบสีบอกคะแนนความแมตช์ */}
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
 
-                  {/* รูปจำลอง (ใช้ Placeholder) */}
+                  {/* แสดงรูปภาพ */}
                   <div className="w-24 h-24 flex-shrink-0 relative">
                     <img 
                       src={item.image_url || "https://placehold.co/150x150?text=No+Image"} 
@@ -175,10 +215,7 @@ function App() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
 }
-
-export default App;
