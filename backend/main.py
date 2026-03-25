@@ -12,7 +12,7 @@ app = FastAPI()
 # --- Config CORS (เพื่อให้ Frontend React คุยกับ Backend ได้) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ใน Production ควรระบุ domain จริง
+    allow_origins=["*"], # อนุญาตทุกโดเมน
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

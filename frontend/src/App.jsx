@@ -1,35 +1,5 @@
 import { useState } from 'react';
 
-// 1. ฐานข้อมูลสินค้า (ย้ายจาก CSV มาไว้ที่นี่เลย และแก้เลขราคาแล้วครับ)
-const productsData = [
-  { id: 1, name: "MacBook Air M2", price: 34900, weight: 1.24, gaming_score: 3, battery_score: 10, image_url: "/images/mac.png" },
-  { id: 2, name: "ASUS TUF Gaming F15", price: 29990, weight: 2.30, gaming_score: 9, battery_score: 5, image_url: "/images/tuf.png" },
-  { id: 3, name: "Lenovo Legion 5", price: 38990, weight: 2.40, gaming_score: 9, battery_score: 4, image_url: "/images/legion.png" },
-  { id: 4, name: "Dell XPS 13 Plus", price: 55000, weight: 1.23, gaming_score: 2, battery_score: 8, image_url: "/images/xps.png" },
-  { id: 5, name: "Acer Swift Go 14", price: 23990, weight: 1.25, gaming_score: 3, battery_score: 7, image_url: "/images/swift.jpg" },
-  { id: 6, name: "HP Victus 16", price: 32900, weight: 2.46, gaming_score: 8, battery_score: 5, image_url: "/images/victus.jpg" },
-  { id: 7, name: "MSI Katana 15", price: 35990, weight: 2.25, gaming_score: 9, battery_score: 4, image_url: "/images/katana.png" },
-  { id: 8, name: "ACER PREDATOR HELIOS NEO 16S", price: 55990, weight: 2.30, gaming_score: 10, battery_score: 3, image_url: "/images/helios.jpg" }, // แก้พาธและราคาตัวนี้แล้วครับ
-  { id: 9, name: "Lenovo Yoga Slim 7", price: 31990, weight: 1.17, gaming_score: 3, battery_score: 8, image_url: "/images/yoga.png" },
-  { id: 10, name: "ROG Strix G16", price: 59990, weight: 2.50, gaming_score: 10, battery_score: 4, image_url: "/images/strix.png" } // แก้ราคาตัวนี้แล้วครับ (ห้ามมีลูกน้ำ)
-];
-
-// ฟังก์ชันหาค่า Min/Max สำหรับปรับสเกลข้อมูล (Normalize)
-const getMinMax = (key) => {
-  const values = productsData.map(p => p[key]);
-  return { min: Math.min(...values), max: Math.max(...values) };
-};
-
-const bounds = {
-  price: getMinMax('price'),
-  weight: getMinMax('weight'),
-  gaming: getMinMax('gaming_score'),
-  battery: getMinMax('battery_score')
-};
-
-// ฟังก์ชันแปลงสเกลให้เป็น 0 ถึง 1
-const normalize = (val, min, max) => (max === min ? 0 : (val - min) / (max - min));
-
 export default function App() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -44,53 +14,38 @@ export default function App() {
     setFormData({ ...formData, [e.target.name]: parseInt(e.target.value) });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setStep(2); // โชว์ Loading
+    setStep(2); // โชว์หน้า Loading
 
-    // 2. เริ่มการคำนวณแบบ AI (ย้ายจาก Python มาคำนวณใน JS)
-    setTimeout(() => {
-      const estimatedWeight = 3.0 - (formData.portability * 0.2);
-      
-      // สเปคที่ User อยากได้ (แปลงเป็นสเกล 0-1)
-      const userVector = {
-        price: normalize(formData.budget, bounds.price.min, bounds.price.max),
-        weight: normalize(estimatedWeight, bounds.weight.min, bounds.weight.max),
-        gaming: normalize(formData.gaming, bounds.gaming.min, bounds.gaming.max),
-        battery: normalize(formData.work_duration, bounds.battery.min, bounds.battery.max)
-      };
+    try {
+      // 🔗 *** ใส่ลิงก์ URL ของ Render.com ที่นี่ ***
+      const API_URL = "https://ai-laptop-backend.onrender.com/recommend";
 
-      // เทียบกับโน้ตบุ๊กทุกเครื่อง
-      const scoredProducts = productsData.map(product => {
-        const pVector = {
-          price: normalize(product.price, bounds.price.min, bounds.price.max),
-          weight: normalize(product.weight, bounds.weight.min, bounds.weight.max),
-          gaming: normalize(product.gaming_score, bounds.gaming.min, bounds.gaming.max),
-          battery: normalize(product.battery_score, bounds.battery.min, bounds.battery.max)
-        };
-
-        // หาระยะห่าง (Euclidean Distance)
-        const distance = Math.sqrt(
-          Math.pow(userVector.price - pVector.price, 2) +
-          Math.pow(userVector.weight - pVector.weight, 2) +
-          Math.pow(userVector.gaming - pVector.gaming, 2) +
-          Math.pow(userVector.battery - pVector.battery, 2)
-        );
-
-        // คำนวณ % Match (สูตรใหม่ ป้องกัน 0% และดูสมจริงขึ้น)
-        const rawScore = (1 - (distance / 2)) * 100;
-        const matchScore = Math.max(0, Math.min(100, rawScore));
-
-        return { ...product, match_score: matchScore.toFixed(1), distance };
+      // ส่งข้อมูลไปให้ Backend ประมวลผล
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
       });
 
-      // เรียงลำดับจากระยะห่างน้อยสุด (ใกล้เคียงสุด) ไปหามากสุด แล้วตัดเอาแค่ 3 อันดับแรก
-      scoredProducts.sort((a, b) => a.distance - b.distance);
-      const top3 = scoredProducts.slice(0, 3);
+      if (!response.ok) {
+        throw new Error("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      }
 
-      setProducts(top3);
-      setStep(3); // โชว์ผลลัพธ์
-    }, 1000); // ดีเลย์ 1 วินาทีให้ดูเหมือน AI กำลังคิด
+      const result = await response.json();
+      
+      // รับข้อมูลที่ AI จัดอันดับแล้วมาแสดงผล
+      if (result.status === "success") {
+        setProducts(result.data);
+        setStep(3);
+      }
+      
+    } catch (error) {
+      console.error(error);
+      alert("❌ เชื่อมต่อ AI Backend ไม่สำเร็จ (หากเพิ่งรันเซิร์ฟเวอร์ฟรี อาจต้องรอ 1-2 นาทีให้เซิร์ฟเวอร์ตื่น แล้วกดค้นหาใหม่ครับ)");
+      setStep(1);
+    }
   };
 
   return (
@@ -102,7 +57,7 @@ export default function App() {
           AI Laptop Finder 💻
         </h1>
         <p className="text-center text-gray-500 mb-8">
-          ตอบคำถามสั้นๆ ให้ AI ช่วยเลือกโน้ตบุ๊กที่ใช่สำหรับคุณ
+          ตอบคำถามสั้นๆ ให้ AI ช่วยเลือกโน้ตบุ๊กที่ใช่สำหรับคุณ (Full-Stack Version)
         </p>
 
         {/* STEP 1: แบบฟอร์มคำถาม */}
@@ -157,7 +112,7 @@ export default function App() {
             </div>
 
             <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition duration-200 shadow-lg mt-4">
-              🔍 ค้นหาคำตอบด้วย AI
+              🔍 ส่งให้ AI วิเคราะห์
             </button>
           </form>
         )}
@@ -166,8 +121,8 @@ export default function App() {
         {step === 2 && (
           <div className="text-center py-10">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold text-gray-700">AI กำลังวิเคราะห์ข้อมูล...</h2>
-            <p className="text-gray-400">เปรียบเทียบจากฐานข้อมูลสินค้า</p>
+            <h2 className="text-xl font-semibold text-gray-700">ส่งข้อมูลไปยังเซิร์ฟเวอร์...</h2>
+            <p className="text-gray-400">กำลังใช้ AI คำนวณแบบ Real-time</p>
           </div>
         )}
 
@@ -175,7 +130,7 @@ export default function App() {
         {step === 3 && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">ผลลัพธ์ที่แนะนำ:</h2>
+              <h2 className="text-xl font-bold text-gray-800">ผลลัพธ์จาก AI:</h2>
               <button onClick={() => setStep(1)} className="text-sm text-indigo-600 underline hover:text-indigo-800">
                 ค้นหาใหม่
               </button>
